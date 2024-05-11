@@ -13,11 +13,13 @@ O Projeto Google Gemini - ChatBot interativo por voz é um sistema de chatbot em
 ## Instalação:
 ### Todos os testes foram feitos no Python em sua versão 3.9
 
-- git clone https://github.com/Cris140/Projeto-Alura---Gemini-ChatBot-Acessivel-e-Interativo-por-Voz
+- Tenha em mãos sua chave API do Gemini
+- git clone https://github.com/Cris140/Google-Gemini---ChatBot-interativo-por-voz
 - pip install -r requirements.txt
 - python AI.py
-
+- Insira sua chave da API do Gemini
+  
 ##
 Estarei incluindo um executável em "exe" para aqueles que querem testar o projeto porém não querem instalar o Python em suas máquinas.
 
-Para download do executável é só acessar https://github.com/Cris140/Projeto-Alura---Gemini-ChatBot-Acessivel-e-Interativo-por-Voz/releases
+Para download do executável é só acessar [**Releases**](https://github.com/Cris140/Google-Gemini---ChatBot-interativo-por-voz/releases)
