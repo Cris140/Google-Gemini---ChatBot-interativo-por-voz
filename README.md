@@ -16,7 +16,7 @@ O Projeto Google Gemini - ChatBot interativo por voz é um sistema de chatbot em
 - Tenha em mãos sua chave API do Gemini
 - git clone https://github.com/Cris140/Google-Gemini---ChatBot-interativo-por-voz
 - pip install -r requirements.txt
-- python AI.py
+- python gemini.py
 - Insira sua chave da API do Gemini
   
 ##
