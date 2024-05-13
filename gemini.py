@@ -7,6 +7,7 @@ import time
 import speech_recognition as sr
 import random
 import requests
+import re
 
 # Função para reproduzir um texto usando TTS
 def play_audio(text):
@@ -16,11 +17,13 @@ def play_audio(text):
     engine.say(text)
     engine.runAndWait()
     
-# Crie um objeto de reconhecimento de voz
+# Cria um objeto de reconhecimento de voz
 r = sr.Recognizer()
+with sr.Microphone() as source:
+    r.adjust_for_ambient_noise(source)
 
 while "gemini_api_key" not in os.environ:
-    play_audio("Insira sua chave da API do Jieminái.")
+    play_audio("Insira sua chave da API do jêmini.")
     api_key = input("Cole somente sua API key do Gemini obtida no AI Studio: ")
     url = f'https://generativelanguage.googleapis.com/v1/models?key={api_key}'
     response = requests.get(url)
@@ -36,9 +39,11 @@ while "gemini_api_key" not in os.environ:
 # Carregando modelo 1.5 do Gemini
 model=genai.GenerativeModel(
     model_name='models/gemini-1.5-pro-latest',
-    system_instruction="Você é um chatbot!((Não utilize simbolos ou emojis de forma alguma!)). Só informe o que tiver certeza. Se for pedido para ver a tela do computador, envie somente o texto 'tkscreenshot' e nada mais, lembre-se que você tem acesso a tela do computador, para isso envie somente o texto 'tkscreenshot' e nada mais. Se for uma pergunta, pergunte ao final se pode ajudar com algo mais. Se o usuário informar que não precisa mais de ajuda, pergunte antes se ele quer que encerre o chat, caso ele responder sim envie o texto ((fecharchat))")
-# Carregando modelo pro-vision
+    system_instruction="Você é um chatbot!((Não utilize simbolos ou emojis de forma alguma!)). Só informe o que tiver certeza e seja breve. Se for pedido para ver a tela do computador, envie somente o texto 'tkscreenshot' e nada mais, lembre-se que você tem acesso a tela do computador, para isso envie somente o texto 'tkscreenshot' e nada mais. Se for uma pergunta, pergunte ao final 'posso ajudar com algo mais?'. Se o usuário informar que não precisa mais de ajuda, pergunte antes se ele quer que encerre o chat, caso ele responder sim envie o texto ((fecharchat))")
+
+# Carregando modelo pro-vision para imagens
 model_vision = genai.GenerativeModel('gemini-pro-vision')
+
 # Inicializando o modo chat para que ele guarde o histórico das mensagens
 chat = model.start_chat(history=[])
 chat
@@ -66,66 +71,112 @@ Criado por Cristhian Reinhard (https://github.com/Cris140)
 print(ascii_art)
 
 # Áudio de introdução. Os erros ortográficos são para que o TTS consiga dizer corretamente.
-play_audio("Olá, como vai você? Meu nome é Jieminái, sou um modelo Lhama multimodal! Me faça uma pergunta ou converse comigo pelo Microfone! Ficarei feliz em te ajudar! Também posso transcrever e verificar imagens na tela do seu computador se me pedir! Apenas lembrissí de esperar eu terminar de falar para me perguntar novamente. No que posso te ajudar hoje?")
+play_audio("Olá! Sou o Jiemini, um modelo Lhama multimodal. Posso responder suas perguntas e ajudar você. Use o microfone para conversar comigo ou me peça para transcrever e verificar imagens no seu computador. Apenas espere eu terminar de falar antes de fazer outra pergunta. Para me chamar, basta dizer Jiemini e fazer sua pergunta direta. Estou aqui para ajudar!")
 
 
 print("Diga algo no Microfone!")
-
-# Função principal em loop
+activated = False
 def chat_with_audio():
+    global activated  # Declarando activated como global
     while True:
         try:
-            # Utilizando o Microfone no device padrão para ouvir o áudio
-            with sr.Microphone() as source:
+            # Inicia a captura de áudio do microfone
+            with sr.Microphone() as source:  
+                # Escuta o áudio do microfone
                 audio = r.listen(source)
-                # Enviando o áudio para a API gratuíta do Google para transcrição
-                texto_transcrito = r.recognize_google(audio, language="pt-BR")
+                # Transcreve o áudio em texto usando a API do Google com idioma definido para Português do Brasil
+                texto_transcrito = r.recognize_google(audio, language="pt-BR")              
                 
-                # 3 textos de resposta após o usuário informar sua pergunta, para que ele saiba que foi escutado.
-                textos_resposta = ["Entendi, já lhe ouvi. Aguarde um momento, por favor, que já lhe responderei.", "Entendi seu pedido, peço apenas um momento e já te respondo.", "Consegui te ouvir, Em um instante lhe respondo."]
-                play_audio(random.choice(textos_resposta))
-                
-                # Request para o Gemini feita com base no áudio transcrito da pessoa.
-                response = chat.send_message(texto_transcrito)
-                
-                # Texto informado ao Gemini nas instruções para ser enviado caso o usuário não precisar mais de ajuda e quiser encerrar o chat.
-                if 'fecharchat' in response.text:
-                    print("Encerrando o chat...")
-                    play_audio("Estarei encerrando nosso chat, se precisar de ajuda novamente é só me abrir!")
-                    break
-                
-                # If que realiza o screenshot da tela se informado pelo usuário e envia ao modelo Pro-Vision, para que ele consiga ler ou identificar o que está na tela do usuário.
-                if 'tkscreenshot' in response.text:
-                    play_audio("Só um momento, estou verificando a sua tela")
-                    screenshot = ImageGrab.grab(bbox=(0, 0, 1920, 1080))
-                    stream = BytesIO()
-                    screenshot.save(stream, format="PNG")
-                    stream.seek(0)
-                    img = Image.open(stream)
-                    response = model_vision.generate_content([texto_transcrito, img], stream=True)
-                    response.resolve()
+                # Verifica se a palavra "gemini" está presente no texto transcrito, ignorando maiúsculas e minúsculas
+                if 'gemini' in texto_transcrito.lower():
+                    # Encontra o índice da palavra "gemini" no texto transcrito
+                    gemini_index = texto_transcrito.lower().index('gemini')
+                    # Extrai o texto após a palavra "gemini" e remove espaços em branco
+                    text_after_gemini = texto_transcrito[gemini_index + len('gemini'):].strip()
                     
-                    # Removendo asteríscos e jogo da velha do resultado, para que o TTS não precise dizer.
-                    texto_limpo = response.text.replace("#", "")
-                    texto_limpo = response.text.replace("*", "")
-                    print("Resposta do bot:", texto_limpo)
-                    play_audio(response.text)
-                    play_audio("Posso ajudar em algo mais?")
-                    
-                # Else caso não seja necessário utilizar o modelo Pro-Vision
-                else:
-                    print("Resposta do bot:", response.text)
-                    texto_final = response.text
-                    # Removendo asteríscos e jogo da velha do resultado, para que o TTS não precise dizer.
-                    texto_limpo = response.text.replace("#", "")
-                    texto_limpo = response.text.replace("*", "")
-                    
-                    # Audio com o resultado final é mandado para o TTS sintetizar.
-                    play_audio(texto_limpo)
-        # Handling de erros
+                    # Verifica se há texto após a palavra "gemini"
+                    if text_after_gemini:
+                        try:
+                            # Define o texto transcrito como o texto após "gemini"
+                            texto_transcrito = text_after_gemini
+                            # Ativa a flag de atividade
+                            activated = True
+                        # Trata o erro quando a API de reconhecimento de fala não reconhece o áudio
+                        except sr.UnknownValueError:
+                            play_audio("Você não disse nada ou não consegui entender o que me pediu, se precisar de mim novamente só me chamar.")
+                        # Trata o erro quando há um problema na requisição à API de reconhecimento de fala
+                        except sr.RequestError as e:
+                            play_audio("Desculpe, parece que não consegui atender sua requisição, poderia tentar novamente?")
+                    else:
+                        # Ativa a flag de atividade
+                        activated = True
+                        # Informa ao usuário que mencionou "gemini" mas não fez nenhuma pergunta
+                        play_audio("Você mencionou jiemini, mas não fez nenhuma pergunta. Como posso ajudar?")
+                
+                # Verifica se a flag de atividade está ativada
+                if activated:
+                    try:
+                        # Se não houver texto após "gemini", escuta novamente o áudio do microfone
+                        if not text_after_gemini:
+                            audio = r.listen(source)
+                            texto_transcrito = r.recognize_google(audio, language="pt-BR")
+                        
+                        # Define respostas possíveis para serem reproduzidas ao usuário
+                        textos_resposta = ["Entendi, consegui te ouvir. Só um momento.", "Entendi seu pedido, peço apenas um momento.", "Consegui te ouvir, Em um instante lhe respondo."]
+                        # Reproduz uma resposta aleatória
+                        play_audio(random.choice(textos_resposta))
+                        
+                        # Envia o texto transcrito para o chatbot e recebe a resposta
+                        response = chat.send_message(texto_transcrito)
+                        
+                        # Verifica se o texto da resposta indica o fechamento do chat
+                        if 'fecharchat' in response.text:
+                            # Informa ao usuário que o chat foi encerrado
+                            play_audio("Tudo bem, se precisar de ajuda novamente é só me chamar!")    
+                            print("Aguardando ser chamado novamente...")                  
+                            pass
+                        # Verifica se o texto da resposta indica a necessidade de capturar uma captura de tela
+                        if 'tkscreenshot' in response.text:
+                            # Informa ao usuário que está verificando a tela para capturar uma screenshot
+                            play_audio("Só um momento, estou verificando a sua tela")
+                            # Captura uma screenshot da tela
+                            screenshot = ImageGrab.grab(bbox=(0, 0, 1920, 1080))
+                            stream = BytesIO()
+                            screenshot.save(stream, format="PNG")
+                            stream.seek(0)
+                            img = Image.open(stream)
+                            # Gera conteúdo com o texto transcrito e a screenshot e envia para o modelo de visão
+                            response = model_vision.generate_content([texto_transcrito, img], stream=True)
+                            response.resolve()
+                            # Remove caracteres especiais da resposta e a reproduz
+                            texto_limpo = response.text.replace("#", "")
+                            texto_limpo = response.text.replace("*", "")
+                            print("Resposta do bot:", texto_limpo)
+                            play_audio(response.text)
+                        else:                         
+                            # Obtém o texto final da resposta
+                            texto_final = response.text
+                            # Remove caracteres especiais do texto final
+                            texto_limpo = response.text.replace("#", "")
+                            texto_limpo = response.text.replace("*", "")
+                            # Verifica se a resposta indica o fechamento do chat
+                            if '((fecharchat))' in texto_limpo:
+                                pass
+                            else:
+                                # Imprime a resposta do chatbot
+                                print("Resposta do bot:", response.text)  
+                                # Reproduz o texto final da resposta
+                                play_audio(texto_limpo)
+                    except sr.UnknownValueError:
+                        # Trata o erro quando a API de reconhecimento de fala não reconhece o áudio
+                        play_audio("Você não disse nada ou não consegui entender o que me pediu, se precisar de mim novamente só me chamar.")
+                    except sr.RequestError as e:
+                        # Trata o erro quando há um problema na requisição à API de reconhecimento de fala
+                        play_audio("Desculpe, parece que não consegui atender sua requisição, poderia tentar novamente?")
         except sr.UnknownValueError:
-            play_audio("Desculpe, não consegui entender o que disse ou você não disse nada, poderia repetir?")
+            pass
         except sr.RequestError as e:
-            play_audio("Desculpe, parece que não consegui atender sua requisição, poderia tentar novamente?")
+            pass
+
 
 chat_with_audio()
