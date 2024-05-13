@@ -20,10 +20,11 @@ def play_audio(text):
 # Cria um objeto de reconhecimento de voz
 r = sr.Recognizer()
 with sr.Microphone() as source:
+    play_audio("Vou calibrar o seu Microfone, fique em silêncio por um segundo para que eu possa ajustar o sinal para o volume ambiente.")
     r.adjust_for_ambient_noise(source)
 
 while "gemini_api_key" not in os.environ:
-    play_audio("Insira sua chave da API do jêmini.")
+    play_audio("Pronto, agora insira sua chave da API do jêmini.")
     api_key = input("Cole somente sua API key do Gemini obtida no AI Studio: ")
     url = f'https://generativelanguage.googleapis.com/v1/models?key={api_key}'
     response = requests.get(url)
